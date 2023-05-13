@@ -1,6 +1,8 @@
 *.idx
 *.lst
 *.rec
+*.pyc
+*.cpython
 .ipynb_checkpoints
 im2rec.py
 
