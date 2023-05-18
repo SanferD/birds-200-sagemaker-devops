@@ -2,6 +2,7 @@ import boto3
 import json
 import logging
 import os
+import pathlib
 
 import numpy as np
 
@@ -20,104 +21,64 @@ def main():
 
 
 def calculate_mean_average_precision_score():
-    # Get label files from S3 bucket
-    label_files = list_s3_objects(
-        bucket=shared_constants.BUCKET,
-        prefix=shared_constants.LABELS_CHANNEL,
-        skip_directories=True,
-    )
-    num_files = len(label_files)
+    """
+    Calculates the mean average precision (mAP) score for object detection predictions.
+
+    This function reads true labels and bounding boxes from label files in the labels dir,
+    and predicted labels and bounding boxes from transform files in transform dir.
+    The mAP score is then calculated using these true and predicted values.
+
+    The mAP score is saved to a file at the end of the function.
+    """
+    # Get number of label files
+    label_file_names = list_file_names(shared_constants.LABELS_DIR)
+    num_files = len(label_file_names)
     logging.info(f"Number of label files: {num_files}")
 
     true_items = []
     predicted_items = []
-    
+
     # Process each label and transform file
     for i in range(num_files):
         label_file_name = f'label_{i}.json'
         transform_file_name = f'img_{i}.jpg.out'
 
         # Get true label and bounding box
-        _, _, true_label, true_x0, true_y0, true_x1, true_y1 = get_file_contents(
-            label_file_name,
-            shared_constants.LABELS_CHANNEL
-        )
-        
+        with open(shared_constants.LABELS_DIR / label_file_name, "r") as f:
+            _, _, true_label, true_x0, true_y0, true_x1, true_y1 = json.load(f)
+
         # Get predicted label and bounding box with highest confidence
-        transform_contents = get_file_contents(
-            transform_file_name,
-            shared_constants.TRANSFORM_CHANNEL
-        )
+        with open(shared_constants.TRANSFORM_DIR / transform_file_name, "r") as f:
+            transform_contents = json.load(f)
+
         pred_label, confidence, pred_x0, pred_y0, pred_x1, pred_y1 = max(
             transform_contents["prediction"],
             key=lambda x: x[1]
         )
-        
+
         # Skip if confidence is below threshold
         if confidence < CONF_THRESHOLD:
             continue
-        
+
         # Add true and predicted items to lists
         true_items.append((int(true_label), true_x0, true_y0, true_x1, true_y1))
         predicted_items.append((int(pred_label), pred_x0, pred_y0, pred_x1, pred_y1))
-    
+
+    logging.debug(f"true_items={true_items}")
+    logging.debug(f"predicted_items={predicted_items}")
+
     # Compute mAP score
-    map_score = compute_mean_average_precision(true_boxes=true_items, predicted_boxes=predicted_items)        
+    map_score = compute_mean_average_precision(true_boxes=true_items,
+                                               predicted_boxes=predicted_items)
     logging.info(f"Obtained mAP score: {map_score}")
-    
+
     # Save mAP score to file
     save_mean_average_precision_score(map_score)
 
     
-def list_s3_objects(bucket: str, prefix: str, skip_directories: bool) -> List[str]:
-    """Lists all objects in an S3 bucket with a given prefix.
+def list_file_names(directory: pathlib.Path):
+    return [str(file) for file in directory.glob('*') if file.is_file()]
     
-    Args:
-        bucket: The name of the S3 bucket.
-        prefix: The prefix of the objects to list.
-    
-    Returns:
-        A list of dictionaries containing information about the objects.
-    """
-    
-    # Initialize list of objects and continuation token
-    objects = []
-    continuation_token = None
-    
-    # Loop until all objects have been retrieved
-    while True:
-        # Get a batch of objects
-        if continuation_token:
-            response = s3.list_objects_v2(
-                Bucket=bucket,
-                Prefix=prefix,
-                ContinuationToken=continuation_token
-            )
-        else:
-            response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
-        
-        # Add objects to list
-        objects.extend(response['Contents'])
-        
-        # Check if there are more objects to retrieve
-        if response['IsTruncated']:
-            continuation_token = response['NextContinuationToken']
-        else:
-            break
-    
-    # Filter out directories
-    if skip_directories:
-        objects = [obj for obj in objects if not obj['Key'].endswith("/")]
-    
-    return objects
-
-    
-def get_file_contents(file, folder):
-    logging.info(f"s3 get_object {folder}/{file}")
-    obj = s3.get_object(Bucket=shared_constants.BUCKET, Key=f'{folder}/{file}')
-    contents = json.loads(obj['Body'].read().decode('utf-8'))
-    return contents
-
 
 def compute_mean_average_precision(
     true_boxes: List[List[float]],
@@ -177,6 +138,9 @@ def compute_mean_average_precision(
         true_positives[label_index] = sum(tp)
         false_positives[label_index] = sum(fp)
     
+    logging.debug(f"true_positives={true_positives}")
+    logging.debug(f"false_positives={false_positives}")
+
     # Compute mean average precision (mAP)
     map_sum = 0.0
     for label_index, _ in enumerate(unique_labels):
@@ -234,8 +198,8 @@ def compute_intersection_over_union(
 
 
 def save_mean_average_precision_score(mAP):
-    os.makedirs(shared_constants.ML_EVALUATE_DIR, exist_ok=True)
-    evaluate_file_path = os.path.join(shared_constants.ML_EVALUATE_DIR, "evaluate.json")
+    os.makedirs(shared_constants.EVALUATION_DIR, exist_ok=True)
+    evaluate_file_path = os.path.join(shared_constants.EVALUATION_DIR, "evaluate.json")
     logging.info(f"Saving map to {evaluate_file_path}")
     with open(evaluate_file_path, "w+") as f:
         json.dump({"map": mAP}, f)
