@@ -199,7 +199,7 @@ def compute_intersection_over_union(
 
 def save_mean_average_precision_score(mAP):
     os.makedirs(shared_constants.EVALUATION_DIR, exist_ok=True)
-    evaluate_file_path = os.path.join(shared_constants.EVALUATION_DIR, "evaluate.json")
+    evaluate_file_path = shared_constants.EVALUATION_DIR / shared_constants.EVALUATION_FILE_NAME
     logging.info(f"Saving map to {evaluate_file_path}")
     with open(evaluate_file_path, "w+") as f:
         json.dump({"map": mAP}, f)

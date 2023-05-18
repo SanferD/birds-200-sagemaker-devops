@@ -1,7 +1,7 @@
 import pathlib
 
 # Base dir
-BASE_ML_DIR = pathlib.Path("/home/sagemaker-user/opt/ml")
+BASE_ML_DIR = pathlib.Path("/opt/ml")
 
 # Define directories
 PROCESSING_DIR = BASE_ML_DIR / "processing"
@@ -15,6 +15,9 @@ TEST_CHANNEL = "test"
 LABELS_CHANNEL = "labels"
 TRANSFORM_CHANNEL = "transform"
 EVALUATION_CHANNEL = "evaluation"
+
+# Define evaluation file name
+EVALUATION_FILE_NAME = "evaluation.json"
 
 # Define training, validation and test directories
 TRAIN_DIR = PROCESSING_DIR / TRAIN_CHANNEL
