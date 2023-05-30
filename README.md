@@ -30,6 +30,6 @@ In addition, the **operations folder** provides a fully functional pipeline usin
 
 Throughout the pipeline, each step carries out specific tasks autonomously to streamline the entire process of creating and evaluating the bird species identification model using AWS SageMaker.
 
-I appreciate your understanding regarding the deprecation of this repository and hope that the upcoming sentiment analysis project will offer a more comprehensive example of an MLOps pipeline. Stay tuned for the GitHub link to the new project, and thank you for your interest in my work.
+I appreciate your understanding regarding the deprecation of this repository. You can find a more comprehensive example in the [news-headlines-sentiment-analysis](https://github.com/SanferD/news-headlines-sentiment-analyzer) repository.
 
 If you have any questions or concerns, please feel free to reach out to me.
